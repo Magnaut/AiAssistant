@@ -1,56 +1,31 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Agents\Base\" />
-    <Folder Include="Agents\Orchestrator\" />
-    <Folder Include="Agents\SubAgents\" />
-    <Folder Include="Config\" />
-    <Folder Include="Modules\Avatar\" />
-  </ItemGroup>
+	<ItemGroup>
+		<Folder Include="Config\" />
+		<Folder Include="Data\" />
+		<Folder Include="UI\Views\" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
-    <PackageReference Include="NAudio" Version="2.3.0" />
-    <PackageReference Include="System.Speech" Version="10.0.7" />
-    <PackageReference Include="Vosk" Version="0.3.38" />
-  </ItemGroup>
-	
-  <ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
+		<PackageReference Include="NAudio" Version="2.3.0" />
+		<PackageReference Include="System.Speech" Version="10.0.7" />
+		<PackageReference Include="Vosk" Version="0.3.38" />
+	</ItemGroup>
+
 	<!-- Копирование папки Models в выходную директорию -->
-	<Content Include="Models\**\*.*">
-		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	</Content>
-  </ItemGroup>
-	
-  <ItemGroup>
-    <Compile Remove="Data\**" />
-    <Compile Remove="MCP\**" />
-    <Compile Remove="Plugins\**" />
-    <Compile Remove="Resources\**" />
-    <Compile Remove="UI\**" />
-    <EmbeddedResource Remove="Data\**" />
-    <EmbeddedResource Remove="MCP\**" />
-    <EmbeddedResource Remove="Plugins\**" />
-    <EmbeddedResource Remove="Resources\**" />
-    <EmbeddedResource Remove="UI\**" />
-    <None Remove="Data\**" />
-    <None Remove="MCP\**" />
-    <None Remove="Plugins\**" />
-    <None Remove="Resources\**" />
-    <None Remove="UI\**" />
-    <Page Remove="Data\**" />
-    <Page Remove="MCP\**" />
-    <Page Remove="Plugins\**" />
-    <Page Remove="Resources\**" />
-    <Page Remove="UI\**" />
-  </ItemGroup>
-	
+	<ItemGroup>
+		<Content Include="Models\**\*.*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
 </Project>

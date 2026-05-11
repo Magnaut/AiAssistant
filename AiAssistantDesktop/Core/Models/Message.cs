@@ -1,8 +1,5 @@
 ﻿namespace AiAssistantDesktop.Core.Models
 {
-    /// <summary>
-    /// Сообщение в диалоге
-    /// </summary>
     public class Message
     {
         public string Role { get; set; } = string.Empty;

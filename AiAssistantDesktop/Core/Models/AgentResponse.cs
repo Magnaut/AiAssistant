@@ -1,8 +1,5 @@
 ﻿namespace AiAssistantDesktop.Core.Models
 {
-    /// <summary>
-    /// Ответ агента
-    /// </summary>
     public class AgentResponse
     {
         public string Text { get; set; } = string.Empty;

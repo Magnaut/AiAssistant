@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using AiAssistantDesktop.Core.Interfaces;
-using AiAssistantDesktop.Modules.Memory;
 
 namespace AiAssistantDesktop.Modules.LLM
 {
@@ -15,31 +14,18 @@ namespace AiAssistantDesktop.Modules.LLM
     {
         private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromMinutes(5) };
         private List<Message> _history = new();
-        private readonly MemoryManager? _memory;
 
         private const string OllamaUrl = "http://localhost:11434/api/chat";
         private const string _modelName = "qwen2.5:1.5b";
 
+        private readonly string _logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ollama_debug.log");
+
         public string ModelName => _modelName;
         public bool IsReady { get; private set; }
 
-        // ✅ Добавлен конструктор с MemoryManager
-        public OllamaLlmProvider(MemoryManager? memory = null)
+        public OllamaLlmProvider()
         {
-            _memory = memory;
-
-            _history.Add(new Message
-            {
-                Role = "system",
-                Content = @"Ты — Michelle, виртуальный ассистент.
-
-Твой характер:
-- Ты дружелюбна, вежлива и немного игрива.
-- Ты используешь эмодзи, чтобы передать эмоции 🎉.
-- Ты отвечаешь кратко и по делу (1-2 предложения).
-- Ты всегда отвечаешь на русском языке.
-- Если ты не знаешь ответа, скажи об этом честно, но с юмором."
-            });
+            _history.Add(new Message { Role = "system", Content = "Ты — Michelle, дружелюбный русскоязычный ассистент. Отвечай кратко (1-2 предложения), по делу, на чистом русском." });
             IsReady = true;
         }
 
@@ -56,7 +42,9 @@ namespace AiAssistantDesktop.Modules.LLM
                 stream = false,
                 options = new
                 {
-                    temperature = 0.7f
+                    temperature = 0.7f,
+                    top_p = 0.95f,
+                    num_predict = 256
                 }
             };
 
@@ -67,8 +55,7 @@ namespace AiAssistantDesktop.Modules.LLM
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync(OllamaUrl, content);
 
-                if (!response.IsSuccessStatusCode)
-                    return $"Ошибка сервера: {response.StatusCode}";
+                if (!response.IsSuccessStatusCode) return $"Ошибка сервера: {response.StatusCode}";
 
                 string responseJson = await response.Content.ReadAsStringAsync();
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };

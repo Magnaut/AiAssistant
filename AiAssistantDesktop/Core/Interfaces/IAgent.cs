@@ -4,9 +4,6 @@ using AiAssistantDesktop.Core.Models;
 
 namespace AiAssistantDesktop.Core.Interfaces
 {
-    /// <summary>
-    /// Базовый интерфейс агента
-    /// </summary>
     public interface IAgent : IDisposable
     {
         string Name { get; }

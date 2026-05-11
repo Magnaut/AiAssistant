@@ -2,9 +2,6 @@
 
 namespace AiAssistantDesktop.Core.Models
 {
-    /// <summary>
-    /// Контекст выполнения агента
-    /// </summary>
     public class AgentContext
     {
         public string SessionId { get; set; } = string.Empty;

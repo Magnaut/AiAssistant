@@ -1,14 +1,13 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
-using System.Text.Json;
 using AiAssistantDesktop.Core.Interfaces;
 using NAudio.Wave;
 using Vosk;
+using System.Text.Json;
 
 namespace AiAssistantDesktop.Modules.ASR
 {
-    public class VoskAsrService : IASRService
+    public class VoskAsrService : IASRService, IDisposable
     {
         private Model? _model;
         private VoskRecognizer? _recognizer;
@@ -21,64 +20,34 @@ namespace AiAssistantDesktop.Modules.ASR
 
         public VoskAsrService(string modelPath)
         {
-            Log($"[Vosk] Инициализация, путь: {modelPath}");
-
             if (!System.IO.Directory.Exists(modelPath))
+                throw new System.IO.DirectoryNotFoundException($"Model path not found: {modelPath}");
+
+            _model = new Model(modelPath);
+            _recognizer = new VoskRecognizer(_model, 16000f);
+
+            _waveIn = new WaveInEvent
             {
-                var msg = $"Model path not found: {modelPath}";
-                Log($"[Vosk] ❌ Ошибка: {msg}");
-                throw new System.IO.DirectoryNotFoundException(msg);
-            }
+                DeviceNumber = 0,
+                WaveFormat = new WaveFormat(16000, 1),
+                BufferMilliseconds = 100
+            };
 
-            try
-            {
-                _model = new Model(modelPath);
-                Log("[Vosk] ✅ Модель загружена");
-
-                _recognizer = new VoskRecognizer(_model, 16000f);
-                Log("[Vosk] ✅ Распознаватель создан");
-
-                _waveIn = new WaveInEvent
-                {
-                    DeviceNumber = 0,
-                    WaveFormat = new WaveFormat(16000, 1),
-                    BufferMilliseconds = 100
-                };
-
-                _waveIn.DataAvailable += WaveIn_DataAvailable;
-                _waveIn.RecordingStopped += (s, e) => Log("[Vosk] ⏹ Запись остановлена");
-
-                Log($"[Vosk] ✅ WaveIn настроен (устройство #{_waveIn.DeviceNumber})");
-            }
-            catch (Exception ex)
-            {
-                Log($"[Vosk] ❌ Критическая ошибка инициализации: {ex.Message}");
-                OnError?.Invoke($"Vosk init error: {ex.Message}");
-                throw;
-            }
+            _waveIn.DataAvailable += WaveIn_DataAvailable;
         }
 
         public Task StartAsync()
         {
             try
             {
-                Log("[Vosk] ▶️ StartAsync вызван");
                 _waveIn?.StartRecording();
                 _isListening = true;
-                Log("[Vosk] ✅ Микрофон запущен");
                 return Task.CompletedTask;
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
-                Log($"[Vosk] ⚠️ Микрофон уже запущен или занят: {ex.Message}");
                 _isListening = true;
                 return Task.CompletedTask;
-            }
-            catch (Exception ex)
-            {
-                Log($"[Vosk] ❌ Ошибка StartAsync: {ex.Message}");
-                OnError?.Invoke($"Start error: {ex.Message}");
-                return Task.FromException(ex);
             }
         }
 
@@ -86,17 +55,11 @@ namespace AiAssistantDesktop.Modules.ASR
         {
             try
             {
-                Log("[Vosk] ⏹ StopAsync вызван");
                 _waveIn?.StopRecording();
                 _isListening = false;
-                Log("[Vosk] ✅ Микрофон остановлен");
                 return Task.CompletedTask;
             }
-            catch (Exception ex)
-            {
-                Log($"[Vosk] ⚠️ Ошибка StopAsync (игнорируется): {ex.Message}");
-                return Task.CompletedTask;
-            }
+            catch { return Task.CompletedTask; }
         }
 
         public Task<bool> IsModelLoadedAsync() => Task.FromResult(_model != null);
@@ -108,8 +71,6 @@ namespace AiAssistantDesktop.Modules.ASR
             if (_recognizer.AcceptWaveform(e.Buffer, e.BytesRecorded))
             {
                 string result = _recognizer.Result();
-                Log($"[Vosk] 📦 Raw JSON: {result}");
-
                 try
                 {
                     using (JsonDocument doc = JsonDocument.Parse(result))
@@ -117,45 +78,23 @@ namespace AiAssistantDesktop.Modules.ASR
                         if (doc.RootElement.TryGetProperty("text", out JsonElement textElement))
                         {
                             string text = textElement.GetString()?.Trim() ?? "";
-
                             if (!string.IsNullOrWhiteSpace(text))
                             {
-                                Log($"[Vosk] 🎤 РАСПОЗНАНО: \"{text}\"");
-                                Console.WriteLine($"🎤 VOICE: {text}");
                                 OnTextRecognized?.Invoke(text);
-                            }
-                            else
-                            {
-                                Log("[Vosk] ⚪ Пустой текст, игнорируем");
                             }
                         }
                     }
                 }
-                catch (JsonException ex)
-                {
-                    Log($"[Vosk] ❌ JSON parse error: {ex.Message}");
-                }
-                catch (Exception ex)
-                {
-                    Log($"[Vosk] ❌ Ошибка обработки: {ex.Message}");
-                }
+                catch { }
             }
-        }
-
-        private void Log(string message)
-        {
-            Debug.WriteLine(message);
-            Console.WriteLine(message);
         }
 
         public void Dispose()
         {
-            Log("[Vosk] 🗑 Dispose вызван");
             StopAsync().Wait();
             _waveIn?.Dispose();
             _recognizer?.Dispose();
             _model?.Dispose();
-            Log("[Vosk] ✅ Ресурсы освобождены");
         }
     }
 }

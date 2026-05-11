@@ -17,28 +17,22 @@ namespace AiAssistantDesktop
         {
             InitializeComponent();
 
-            // 1. Получаем сервисы из контейнера (DI)
             _agent = App.Services!.GetRequiredService<ConversationAgent>();
             _eventBus = App.Services!.GetRequiredService<IEventBus>();
 
-            // 2. Подписываемся на события Агентa (чтобы UI знал, что происходит)
             _eventBus.Subscribe<UserSpokeEvent>(OnUserSpoke);
             _eventBus.Subscribe<AgentThinkingEvent>(OnAgentThinking);
             _eventBus.Subscribe<AgentRespondedEvent>(OnAgentResponded);
             _eventBus.Subscribe<AgentErrorEvent>(OnAgentError);
 
-            // 3. Начальная настройка UI
             UpdateListenButtonUI();
         }
 
-        // --- Обработчики событий (работают в фоновом потоке!) ---
-
         private void OnUserSpoke(UserSpokeEvent e)
         {
-            // Dispatcher.Invoke нужен, так как события приходят не из UI-потока
             Dispatcher.Invoke(() =>
             {
-                Log($"👤 Пользователь: {e.Text}", "#4FC3F7"); // Голубой цвет
+                Log($"👤 Пользователь: {e.Text}");
                 lblStatus.Text = "🧠 Агент обрабатывает...";
             });
         }
@@ -47,7 +41,7 @@ namespace AiAssistantDesktop
         {
             Dispatcher.Invoke(() =>
             {
-                Log("🤔 Агент думает...", "#FF9800"); // Оранжевый
+                Log("🤔 Агент думает...");
             });
         }
 
@@ -55,7 +49,7 @@ namespace AiAssistantDesktop
         {
             Dispatcher.Invoke(() =>
             {
-                Log($"🤖 Агент: {e.Text}", "#81C784"); // Зеленый
+                Log($"🤖 Агент: {e.Text}");
                 lblStatus.Text = "🟢 Система активна";
             });
         }
@@ -64,12 +58,10 @@ namespace AiAssistantDesktop
         {
             Dispatcher.Invoke(() =>
             {
-                Log($"❌ Ошибка: {e.Message}", "#E57373"); // Красный
+                Log($"❌ Ошибка: {e.Message}");
                 lblStatus.Text = "⚠️ Ошибка";
             });
         }
-
-        // --- Управление кнопками ---
 
         private async void BtnToggleListen_Click(object sender, RoutedEventArgs e)
         {
@@ -78,13 +70,13 @@ namespace AiAssistantDesktop
 
             if (_isListening)
             {
-                await _agent.StartListeningAsync(); // ✅ Исправлено
-                Log("🎤 Микрофон включен.", "#AAAAAA");
+                await _agent.StartListeningAsync();
+                Log("🎤 Микрофон включен.");
             }
             else
             {
-                await _agent.StopListeningAsync(); // ✅ Исправлено
-                Log("🔇 Микрофон выключен.", "#AAAAAA");
+                await _agent.StopListeningAsync();
+                Log("🔇 Микрофон выключен.");
             }
         }
 
@@ -93,19 +85,17 @@ namespace AiAssistantDesktop
             txtLog.Clear();
         }
 
-        // --- Вспомогательные методы ---
-
         private void UpdateListenButtonUI()
         {
             if (_isListening)
             {
                 btnToggleListen.Content = "⏹ Остановить";
-                btnToggleListen.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF5252")); // Красный
+                btnToggleListen.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF5252"));
             }
             else
             {
                 btnToggleListen.Content = "▶️ Слушать";
-                btnToggleListen.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")); // Зеленый
+                btnToggleListen.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
             }
         }
 

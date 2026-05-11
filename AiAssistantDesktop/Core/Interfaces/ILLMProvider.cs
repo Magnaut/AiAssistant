@@ -4,9 +4,6 @@ using System.Threading.Tasks;
 
 namespace AiAssistantDesktop.Core.Interfaces
 {
-    /// <summary>
-    /// Интерфейс провайдера LLM
-    /// </summary>
     public interface ILLMProvider : IDisposable
     {
         string ModelName { get; }

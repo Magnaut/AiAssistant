@@ -2,9 +2,6 @@
 
 namespace AiAssistantDesktop.Core.Events
 {
-    /// <summary>
-    /// Интерфейс шины событий (Publisher/Subscriber)
-    /// </summary>
     public interface IEventBus
     {
         void Publish<TEvent>(TEvent @event) where TEvent : class;

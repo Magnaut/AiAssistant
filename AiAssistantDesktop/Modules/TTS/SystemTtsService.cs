@@ -6,20 +6,18 @@ using AiAssistantDesktop.Core.Interfaces;
 
 namespace AiAssistantDesktop.Modules.TTS
 {
-    public class SystemTtsService : ITTSService
+    public class SystemTtsService : ITTSService, IDisposable
     {
         private SpeechSynthesizer? _synthesizer;
         private bool _isSpeaking;
 
         public bool IsSpeaking => _isSpeaking;
-        public event Action? OnSpeakingFinished;
 
         public SystemTtsService()
         {
             _synthesizer = new SpeechSynthesizer();
             _synthesizer.SelectVoiceByHints(VoiceGender.Female, VoiceAge.Adult);
             _synthesizer.Rate = 0;
-            _synthesizer.Volume = 100;
         }
 
         public async Task SpeakAsync(string text, CancellationToken ct = default)
@@ -31,14 +29,10 @@ namespace AiAssistantDesktop.Modules.TTS
             {
                 await Task.Run(() => _synthesizer.Speak(text), ct);
             }
-            catch (OperationCanceledException)
-            {
-                // Игнорируем отмену
-            }
+            catch (OperationCanceledException) { }
             finally
             {
                 _isSpeaking = false;
-                OnSpeakingFinished?.Invoke();
             }
         }
 
@@ -46,7 +40,6 @@ namespace AiAssistantDesktop.Modules.TTS
         {
             _synthesizer?.SpeakAsyncCancelAll();
             _isSpeaking = false;
-            OnSpeakingFinished?.Invoke();
             return Task.CompletedTask;
         }
 

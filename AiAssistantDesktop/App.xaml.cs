@@ -20,6 +20,7 @@ namespace AiAssistantDesktop
             base.OnStartup(e);
             ConfigureServices();
 
+            // Запускаем агента
             var agent = Services?.GetService<ConversationAgent>();
             agent?.StartAsync();
         }
@@ -31,7 +32,12 @@ namespace AiAssistantDesktop
             // 1. Event Bus
             services.AddSingleton<IEventBus, SimpleEventBus>();
 
-            // 2. Модули
+            // 🔥 2. Новые сервисы Фазы 1
+            services.AddSingleton<ContentFilter>();
+            services.AddSingleton<SessionFileManager>();
+            services.AddSingleton<ThoughtPrioritizer>();
+
+            // 3. Модули
             services.AddSingleton<ILLMProvider, OllamaLlmProvider>();
             services.AddSingleton<ITTSService, SystemTtsService>();
 
@@ -39,7 +45,7 @@ namespace AiAssistantDesktop
             string modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Models", "vosk-model-small-ru");
             services.AddSingleton<IASRService>(sp => new VoskAsrService(modelPath));
 
-            // 3. Агент
+            // 4. Агент (с инъекцией новых зависимостей)
             services.AddSingleton<ConversationAgent>();
 
             Services = services.BuildServiceProvider();

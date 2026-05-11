@@ -25,7 +25,10 @@ namespace AiAssistantDesktop
             _eventBus.Subscribe<AgentRespondedEvent>(OnAgentResponded);
             _eventBus.Subscribe<AgentErrorEvent>(OnAgentError);
 
+            _agent.AddSessionFile("заметка.txt", "Пароль: 1234");
+
             UpdateListenButtonUI();
+            UpdateStatusLabel();
         }
 
         private void OnUserSpoke(UserSpokeEvent e)
@@ -34,6 +37,7 @@ namespace AiAssistantDesktop
             {
                 Log($"👤 Пользователь: {e.Text}");
                 lblStatus.Text = "🧠 Агент обрабатывает...";
+                lblStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9800"));
             });
         }
 
@@ -51,6 +55,8 @@ namespace AiAssistantDesktop
             {
                 Log($"🤖 Агент: {e.Text}");
                 lblStatus.Text = "🟢 Система активна";
+                lblStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
+                UpdateStatusLabel();
             });
         }
 
@@ -60,6 +66,7 @@ namespace AiAssistantDesktop
             {
                 Log($"❌ Ошибка: {e.Message}");
                 lblStatus.Text = "⚠️ Ошибка";
+                lblStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E57373"));
             });
         }
 
@@ -78,6 +85,7 @@ namespace AiAssistantDesktop
                 await _agent.StopListeningAsync();
                 Log("🔇 Микрофон выключен.");
             }
+            UpdateStatusLabel();
         }
 
         private void BtnClearLog_Click(object sender, RoutedEventArgs e)
@@ -97,6 +105,15 @@ namespace AiAssistantDesktop
                 btnToggleListen.Content = "▶️ Слушать";
                 btnToggleListen.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
             }
+        }
+
+        private void UpdateStatusLabel()
+        {
+            var status = _agent.GetStatus();
+            var filesInfo = status.SessionFilesCount > 0 ? $" 📎{status.SessionFilesCount}" : "";
+            lblStatus.Text = status.IsListening
+                ? $"🟢 Слушаю{filesInfo}"
+                : $"🔴 Пауза{filesInfo}";
         }
 
         private void Log(string message, string? hexColor = null)

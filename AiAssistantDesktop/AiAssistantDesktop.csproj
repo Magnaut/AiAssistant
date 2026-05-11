@@ -9,7 +9,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Folder Include="Config\" />
 		<Folder Include="Data\" />
 		<Folder Include="UI\Views\" />
 	</ItemGroup>

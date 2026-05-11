@@ -13,17 +13,7 @@
     <Folder Include="Agents\Orchestrator\" />
     <Folder Include="Agents\SubAgents\" />
     <Folder Include="Config\" />
-    <Folder Include="MCP\Client\" />
-    <Folder Include="MCP\Registry\" />
-    <Folder Include="MCP\Bridges\" />
     <Folder Include="Modules\Avatar\" />
-    <Folder Include="Data\" />
-    <Folder Include="Plugins\Hooks\" />
-    <Folder Include="Plugins\Extensions\" />
-    <Folder Include="Resources\" />
-    <Folder Include="UI\Views\" />
-    <Folder Include="UI\Controls\" />
-    <Folder Include="UI\Converters\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,6 +28,29 @@
 	<Content Include="Models\**\*.*">
 		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	</Content>
+  </ItemGroup>
+	
+  <ItemGroup>
+    <Compile Remove="Data\**" />
+    <Compile Remove="MCP\**" />
+    <Compile Remove="Plugins\**" />
+    <Compile Remove="Resources\**" />
+    <Compile Remove="UI\**" />
+    <EmbeddedResource Remove="Data\**" />
+    <EmbeddedResource Remove="MCP\**" />
+    <EmbeddedResource Remove="Plugins\**" />
+    <EmbeddedResource Remove="Resources\**" />
+    <EmbeddedResource Remove="UI\**" />
+    <None Remove="Data\**" />
+    <None Remove="MCP\**" />
+    <None Remove="Plugins\**" />
+    <None Remove="Resources\**" />
+    <None Remove="UI\**" />
+    <Page Remove="Data\**" />
+    <Page Remove="MCP\**" />
+    <Page Remove="Plugins\**" />
+    <Page Remove="Resources\**" />
+    <Page Remove="UI\**" />
   </ItemGroup>
 	
 </Project>

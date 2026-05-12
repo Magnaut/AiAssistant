@@ -5,30 +5,35 @@ using AiAssistantDesktop.Core.Models;
 
 namespace AiAssistantDesktop.Core.Services
 {
-    /// <summary>
-    /// Сервис приоритезации мыслей и событий
-    /// </summary>
     public class ThoughtPrioritizer
     {
         private readonly HashSet<string> _criticalKeywords;
+        private readonly HashSet<string> _highPriorityKeywords;
         private readonly string _agentName;
 
         public ThoughtPrioritizer(string agentName = "Michelle")
         {
             _agentName = agentName;
+
             _criticalKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                // Ключевые слова для критического приоритета
                 agentName.ToLowerInvariant(),
                 "помоги", "срочно", "важно", "экстренно",
-                "ошибка", "проблема", "не работает",
                 "стоп", "хватит", "прекрати"
+            };
+
+            _highPriorityKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "привет", "здравствуй", "добрый день", "доброе утро", "добрый вечер",
+                "пока", "до свидания", "увидимся",
+                "спасибо", "пожалуйста",
+                "кто ты", "что ты", "как тебя зовут",
+                "меня зовут", "моё имя",
+                "ты слышишь", "ты меня слышишь", "ты тут",
+                "запомни", "запомнила", "помнишь"
             };
         }
 
-        /// <summary>
-        /// Определяет приоритет для входящего сообщения от пользователя
-        /// </summary>
         public ThoughtPriority PrioritizeUserInput(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
@@ -36,31 +41,30 @@ namespace AiAssistantDesktop.Core.Services
 
             var lower = input.ToLowerInvariant();
 
-            // 1. Проверка на критические ключевые слова
+            // 1. Критические ключевые слова
             if (_criticalKeywords.Any(kw => lower.Contains(kw)))
                 return ThoughtPriority.Critical;
 
-            // 2. Проверка на вопросы (средний приоритет)
+            // 2. Высокий приоритет (социальные сигналы, представление, проверка связи)
+            if (_highPriorityKeywords.Any(kw => lower.Contains(kw)))
+                return ThoughtPriority.High;
+
+            // 3. Вопросы — средний приоритет
             if (lower.Contains("?") ||
                 lower.Contains("как") ||
                 lower.Contains("что") ||
                 lower.Contains("почему") ||
                 lower.Contains("когда") ||
-                lower.Contains("где"))
+                lower.Contains("где") ||
+                lower.Contains("зачем") ||
+                lower.Contains("сколько"))
                 return ThoughtPriority.Medium;
 
-            // 3. Приветствия и прощания — высокий приоритет (социальные сигналы)
-            if (lower.Contains("привет") || lower.Contains("здравствуй") ||
-                lower.Contains("пока") || lower.Contains("до свидания"))
-                return ThoughtPriority.High;
-
-            // 4. Всё остальное — низкий приоритет
-            return ThoughtPriority.Low;
+            // 🔥 ИЗМЕНЕНИЕ: Всё остальное — теперь MEDIUM, а не LOW
+            // Чтобы агент отвечал на большинство сообщений
+            return ThoughtPriority.Medium;
         }
 
-        /// <summary>
-        /// Определяет приоритет для внутреннего события/мысли
-        /// </summary>
         public ThoughtPriority PrioritizeInternalEvent(string eventType, string? content = null)
         {
             return eventType.ToLowerInvariant() switch
@@ -74,9 +78,6 @@ namespace AiAssistantDesktop.Core.Services
             };
         }
 
-        /// <summary>
-        /// Создаёт приоритезированную мысль из текста
-        /// </summary>
         public PrioritizedThought CreateThought(string content, string source = "user")
         {
             var priority = source == "user"
@@ -86,9 +87,6 @@ namespace AiAssistantDesktop.Core.Services
             return new PrioritizedThought(content, priority, source);
         }
 
-        /// <summary>
-        /// Фильтрует список мыслей, оставляя только те, что требуют ответа
-        /// </summary>
         public IEnumerable<PrioritizedThought> FilterResponseRequired(
             IEnumerable<PrioritizedThought> thoughts,
             ThoughtPriority minPriority = ThoughtPriority.Medium)
@@ -96,18 +94,12 @@ namespace AiAssistantDesktop.Core.Services
             return thoughts.Where(t => t.Priority >= minPriority && !t.CanBeIgnored);
         }
 
-        /// <summary>
-        /// Сортирует мысли по приоритету (критические первыми)
-        /// </summary>
         public IEnumerable<PrioritizedThought> SortByPriority(IEnumerable<PrioritizedThought> thoughts)
         {
             return thoughts.OrderByDescending(t => (int)t.Priority)
                           .ThenByDescending(t => t.Timestamp);
         }
 
-        /// <summary>
-        /// Добавляет ключевое слово для критического приоритета
-        /// </summary>
         public void AddCriticalKeyword(string keyword)
         {
             if (!string.IsNullOrWhiteSpace(keyword))

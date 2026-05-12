@@ -12,11 +12,12 @@ namespace AiAssistantDesktop.Modules.LLM
 {
     public class OllamaLlmProvider : ILLMProvider
     {
-        private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromMinutes(5) };
+        private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromMinutes(2) };
         private List<Message> _history = new();
 
         private const string OllamaUrl = "http://localhost:11434/api/chat";
-        private const string _modelName = "qwen2.5:1.5b";
+        // 🔥 МЕНЯЕМ НА ЛЁГКУЮ МОДЕЛЬ
+        private const string _modelName = "qwen2.5:1.5b"; // или "tinyllama"
 
         private readonly string _logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ollama_debug.log");
 
@@ -25,7 +26,12 @@ namespace AiAssistantDesktop.Modules.LLM
 
         public OllamaLlmProvider()
         {
-            _history.Add(new Message { Role = "system", Content = "Ты — Michelle, дружелюбный русскоязычный ассистент. Отвечай кратко (1-2 предложения), по делу, на чистом русском." });
+            // 🔥 Упрощённый системный промпт
+            _history.Add(new Message
+            {
+                Role = "system",
+                Content = "Ты Michelle. Отвечай ОЧЕНЬ кратко (1 предложение) на русском."
+            });
             IsReady = true;
         }
 
@@ -33,8 +39,15 @@ namespace AiAssistantDesktop.Modules.LLM
 
         public async Task<string> GenerateAsync(string prompt)
         {
+            // 🔥 Очищаем старую историю (оставляем только system + последние 3 сообщения)
+            if (_history.Count > 4)
+            {
+                _history.RemoveAt(1); // Удаляем самое старое после system
+            }
+
             _history.Add(new Message { Role = "user", Content = prompt });
 
+            // 🔥 МАКСИМАЛЬНАЯ ОПТИМИЗАЦИЯ для слабого железа
             var request = new
             {
                 model = _modelName,
@@ -43,8 +56,10 @@ namespace AiAssistantDesktop.Modules.LLM
                 options = new
                 {
                     temperature = 0.7f,
-                    top_p = 0.95f,
-                    num_predict = 256
+                    top_p = 0.9f,
+                    num_predict = 64,        // 🔥 Очень короткий ответ (было 256)
+                    num_ctx = 1024,          // 🔥 Маленький контекст (было 4096)
+                    num_thread = 2           // 🔥 По кол-ву ядер CPU (i3-2120 = 2 ядра)
                 }
             };
 
@@ -55,7 +70,8 @@ namespace AiAssistantDesktop.Modules.LLM
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync(OllamaUrl, content);
 
-                if (!response.IsSuccessStatusCode) return $"Ошибка сервера: {response.StatusCode}";
+                if (!response.IsSuccessStatusCode)
+                    return $"Ошибка: {response.StatusCode}";
 
                 string responseJson = await response.Content.ReadAsStringAsync();
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -64,7 +80,6 @@ namespace AiAssistantDesktop.Modules.LLM
                 if (result?.Message?.Content != null)
                 {
                     _history.Add(result.Message);
-                    if (_history.Count > 12) _history.RemoveRange(1, _history.Count - 11);
                     return result.Message.Content;
                 }
             }
@@ -72,7 +87,7 @@ namespace AiAssistantDesktop.Modules.LLM
             {
                 return $"Ошибка: {ex.Message}";
             }
-            return "Пустой ответ.";
+            return "Не удалось ответить.";
         }
 
         public async IAsyncEnumerable<string> GenerateStreamingAsync(string prompt)

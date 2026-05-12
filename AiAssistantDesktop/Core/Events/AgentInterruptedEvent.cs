@@ -5,7 +5,7 @@
     /// </summary>
     public class AgentInterruptedEvent
     {
-        public string? InterruptReason { get; set; }
-        public AgentInterruptedEvent(string? reason = null) => InterruptReason = reason;
+        public string? Reason { get; set; }
+        public AgentInterruptedEvent(string? reason = null) => Reason = reason;
     }
 }

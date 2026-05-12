@@ -1,3 +1,5 @@
 <Solution>
+  <Project Path="AiAssistantDesktop.Plugin.Clipboard/AiAssistantDesktop.Plugin.Clipboard.csproj" Id="0449daed-74db-4cfe-b97f-151ab193f366" />
+  <Project Path="AiAssistantDesktop.Plugin.HelloWorld/AiAssistantDesktop.Plugin.HelloWorld.csproj" Id="191ef9a6-a372-4296-9f47-600f7acbd4f7" />
   <Project Path="AiAssistantDesktop/AiAssistantDesktop.csproj" Id="0727a66d-b898-4d68-8576-26b5e7af0283" />
 </Solution>

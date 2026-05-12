@@ -8,7 +8,7 @@ namespace AiAssistantDesktop.Core.Interfaces
     {
         string Name { get; }
         string Description { get; }
-        Dictionary<string, string> ParametersSchema { get; } // name -> description
+        Dictionary<string, string> ParametersSchema { get; }
 
         Task<ToolResult> ExecuteAsync(Dictionary<string, string> parameters);
     }

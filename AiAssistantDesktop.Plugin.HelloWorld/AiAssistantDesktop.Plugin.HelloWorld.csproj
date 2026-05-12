@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<!-- 🔥 Правильный путь: проекты лежат рядом -->
+		<OutputPath>..\AiAssistantDesktop\bin\$(Configuration)\net10.0-windows\Plugins\</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+		<!-- Не копировать зависимости -->
+		<CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+		<GenerateDependencyFile>false</GenerateDependencyFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!--  Правильный путь к главному проекту -->
+		<ProjectReference Include="..\AiAssistantDesktop\AiAssistantDesktop.csproj">
+			<Private>false</Private>
+			<CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+		</ProjectReference>
+	</ItemGroup>
+
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<Copy SourceFiles="$(TargetPath)"
+			  DestinationFolder="..\AiAssistantDesktop\bin\$(Configuration)\net10.0-windows\Plugins\"
+			  SkipUnchangedFiles="true" />
+	</Target>
+</Project>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using AiAssistantDesktop.Core.Events;
@@ -14,7 +15,6 @@ namespace AiAssistantDesktop.Core.Services
         private readonly ILLMProvider _llm;
         private readonly ITTSService _tts;
         private readonly IEventBus _eventBus;
-
         private readonly ContentFilter _contentFilter;
         private readonly SessionFileManager _sessionManager;
         private readonly ThoughtPrioritizer _prioritizer;
@@ -28,67 +28,39 @@ namespace AiAssistantDesktop.Core.Services
         private bool _isInitialized;
 
         public ConversationAgent(
-            IASRService asr,
-            ILLMProvider llm,
-            ITTSService tts,
-            IEventBus eventBus,
-            ContentFilter contentFilter,
-            SessionFileManager sessionManager,
-            ThoughtPrioritizer prioritizer,
-            MemoryManager memoryManager,
-            PromptBuilder promptBuilder,
-            ToolExecutor toolExecutor,
-            CognitiveLoop cognitiveLoop,
-            ProactivityManager proactivity)
+            IASRService asr, ILLMProvider llm, ITTSService tts, IEventBus eventBus,
+            ContentFilter contentFilter, SessionFileManager sessionManager,
+            ThoughtPrioritizer prioritizer, MemoryManager memoryManager,
+            PromptBuilder promptBuilder, ToolExecutor toolExecutor,
+            CognitiveLoop cognitiveLoop, ProactivityManager proactivity)
         {
-            _asr = asr;
-            _llm = llm;
-            _tts = tts;
-            _eventBus = eventBus;
-            _contentFilter = contentFilter;
-            _sessionManager = sessionManager;
-            _prioritizer = prioritizer;
-            _memoryManager = memoryManager;
-            _promptBuilder = promptBuilder;
-            _toolExecutor = toolExecutor;
-            _cognitiveLoop = cognitiveLoop;
-            _proactivity = proactivity;
+            _asr = asr; _llm = llm; _tts = tts; _eventBus = eventBus;
+            _contentFilter = contentFilter; _sessionManager = sessionManager;
+            _prioritizer = prioritizer; _memoryManager = memoryManager;
+            _promptBuilder = promptBuilder; _toolExecutor = toolExecutor;
+            _cognitiveLoop = cognitiveLoop; _proactivity = proactivity;
 
             _asr.OnTextRecognized += OnTextRecognized;
             _eventBus.Subscribe<ProactiveSpeechEvent>(OnProactiveSpeech);
-
             _isInitialized = true;
         }
 
         private async void OnTextRecognized(string rawText)
         {
             if (!_isInitialized) return;
-
             var filteredInput = _contentFilter.FilterInput(rawText);
             if (string.IsNullOrWhiteSpace(filteredInput)) return;
 
             var thought = _prioritizer.CreateThought(filteredInput, "user");
-            if (thought.CanBeIgnored)
-            {
-                _eventBus.Publish(new UserSpokeEvent($"[Low] {filteredInput}"));
-                return;
-            }
+            if (thought.CanBeIgnored) { _eventBus.Publish(new UserSpokeEvent($"[Low] {filteredInput}")); return; }
 
-            // 🔥 BARGE-IN: Если агент говорит и пришёл важный запрос — прерываем
             if (_tts.IsSpeaking && thought.Priority >= ThoughtPriority.High)
             {
                 await _tts.StopAsync();
                 _eventBus.Publish(new AgentInterruptedEvent("User interrupt"));
-                // Не ждём, сразу обрабатываем новый ввод
             }
 
-            // Если агент уже думает — ставим в очередь (упрощённо: игнорируем)
-            if (_isThinking)
-            {
-                _proactivity.RecordUnanswered();
-                return;
-            }
-
+            if (_isThinking) { _proactivity.RecordUnanswered(); return; }
             await ProcessInputAsync(filteredInput, "user");
         }
 
@@ -110,15 +82,24 @@ namespace AiAssistantDesktop.Core.Services
             {
                 _eventBus.Publish(new AgentThinkingEvent());
 
-                var userPrompt = _promptBuilder.BuildUserPrompt(input);
-                string response = await _llm.GenerateAsync(userPrompt);
-                response = _contentFilter.FilterOutput(response);
+                var systemPrompt = _promptBuilder.BuildSystemPrompt("Michelle");
+                var sessionContext = _sessionManager.GetContextForLLM();
+                var userPrompt = _promptBuilder.BuildUserPrompt(input, sessionContext);
+                var fullPrompt = systemPrompt + "\n\n" + userPrompt;
 
+                Debug.WriteLine($"🧠 ПРОМПТ:\n{fullPrompt}");
+
+                string response = await _llm.GenerateAsync(fullPrompt);
+                Debug.WriteLine($"🗣️ LLM ОТВЕТ: {response}");
+
+                response = _contentFilter.FilterOutput(response);
                 var (finalResponse, usedTool) = await _toolExecutor.TryExecuteToolAsync(response);
+                Debug.WriteLine($"🛠 TOOL: used={usedTool}, result={finalResponse}");
+
                 if (usedTool)
                 {
                     _eventBus.Publish(new AgentThinkingEvent());
-                    var toolPrompt = $"Результат: {finalResponse}. Ответь пользователю.";
+                    var toolPrompt = $"Результат: {finalResponse}. Ответь пользователю кратко.";
                     response = await _llm.GenerateAsync(toolPrompt);
                     response = _contentFilter.FilterOutput(response);
                 }
@@ -140,31 +121,16 @@ namespace AiAssistantDesktop.Core.Services
             }
         }
 
-        public async Task StartAsync()
-        {
-            if (!_isInitialized) return;
-            await _asr.StartAsync();
-            _cognitiveLoop.Start();
-        }
+        public async Task StartAsync() { if (!_isInitialized) return; await _asr.StartAsync(); _cognitiveLoop.Start(); }
+        public async Task StopListeningAsync() => await _asr.StopAsync();
+        public async Task StartListeningAsync() => await _asr.StartAsync();
 
-        public async Task StopListeningAsync() { await _asr.StopAsync(); }
-        public async Task StartListeningAsync() { await _asr.StartAsync(); }
-
-        // 🔥 Методы для динамического переключения моделей
-        public async Task<bool> SwitchLlmModelAsync(string modelName)
-        {
-            if (_llm is ISwitchableProvider switchable)
-                return await switchable.SwitchModelAsync(modelName);
-            return false;
-        }
+        public async Task<bool> SwitchLlmModelAsync(string modelName) =>
+            _llm is ISwitchableProvider s ? await s.SwitchModelAsync(modelName) : false;
 
         public string GetCurrentModel() => _llm.ModelName;
-        public string[] GetAvailableModels()
-        {
-            if (_llm is ISwitchableProvider switchable)
-                return switchable.AvailableModels.ToArray();
-            return new[] { _llm.ModelName };
-        }
+        public string[] GetAvailableModels() =>
+            _llm is ISwitchableProvider s ? s.AvailableModels.ToArray() : new[] { _llm.ModelName };
 
         public bool AddSessionFile(string fileName, string content, string contentType = "text/plain") => _sessionManager.AddFile(fileName, content, contentType);
         public SessionFile[] SearchSessionFiles(string keyword) => _sessionManager.SearchByKeyword(keyword).ToArray();
@@ -189,6 +155,7 @@ namespace AiAssistantDesktop.Core.Services
         public bool IsInitialized { get; set; }
     }
 
+    // События
     public class UserSpokeEvent { public string Text { get; } public UserSpokeEvent(string text) => Text = text; }
     public class AgentThinkingEvent { }
     public class AgentRespondedEvent { public string Text { get; } public AgentRespondedEvent(string text) => Text = text; }

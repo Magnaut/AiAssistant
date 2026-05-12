@@ -28,20 +28,16 @@ namespace AiAssistantDesktop
         {
             var services = new ServiceCollection();
 
-            // Core
             services.AddSingleton<IEventBus, SimpleEventBus>();
             services.AddSingleton<ContentFilter>();
             services.AddSingleton<SessionFileManager>();
             services.AddSingleton<ThoughtPrioritizer>();
-
-            // Фаза 2
             services.AddSingleton<MemoryManager>();
             services.AddSingleton<ToolRegistry>();
             services.AddSingleton<ToolExecutor>();
             services.AddSingleton<PromptBuilder>();
-
-            // Фаза 3
             services.AddSingleton<ProactivityManager>();
+
             services.AddSingleton<CognitiveLoop>(sp =>
             {
                 var llm = sp.GetRequiredService<ILLMProvider>();
@@ -51,13 +47,11 @@ namespace AiAssistantDesktop
                 return new CognitiveLoop(llm, mem, proact, bus, () => false);
             });
 
-            // Modules
             services.AddSingleton<ILLMProvider, OllamaLlmProvider>();
             services.AddSingleton<ITTSService, SystemTtsService>();
             string modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Models", "vosk-model-small-ru");
             services.AddSingleton<IASRService>(sp => new VoskAsrService(modelPath));
 
-            // Инструменты
             services.AddSingleton<ToolRegistry>(sp =>
             {
                 var registry = new ToolRegistry();
@@ -67,10 +61,12 @@ namespace AiAssistantDesktop
                 return registry;
             });
 
-            // Agent
             services.AddSingleton<ConversationAgent>();
-
             Services = services.BuildServiceProvider();
+
+            // Загрузка плагинов
+            var pluginLoader = new PluginLoader(Services);
+            pluginLoader.LoadAllPlugins();
         }
     }
 }

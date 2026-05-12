@@ -1,9 +1,10 @@
-﻿using System;
-using System.Windows;
-using System.Windows.Media;
-using AiAssistantDesktop.Core.Events;
+﻿using AiAssistantDesktop.Core.Events;
+using AiAssistantDesktop.Core.Models;
 using AiAssistantDesktop.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Windows;
+using System.Windows.Media;
 
 namespace AiAssistantDesktop
 {
@@ -25,7 +26,10 @@ namespace AiAssistantDesktop
             _eventBus.Subscribe<AgentRespondedEvent>(OnAgentResponded);
             _eventBus.Subscribe<AgentErrorEvent>(OnAgentError);
 
-            _agent.AddSessionFile("заметка.txt", "Пароль: 1234");
+            //  Подписка на проактивные события Фазы 3
+            _eventBus.Subscribe<InternalThoughtEvent>(OnInternalThought);
+            _eventBus.Subscribe<CognitiveLoopStartedEvent>(_ => Log("🧠 Когнитивный цикл запущен"));
+            _eventBus.Subscribe<CognitiveLoopStoppedEvent>(_ => Log(" Когнитивный цикл остановлен"));
 
             UpdateListenButtonUI();
             UpdateStatusLabel();
@@ -35,7 +39,7 @@ namespace AiAssistantDesktop
         {
             Dispatcher.Invoke(() =>
             {
-                Log($"👤 Пользователь: {e.Text}");
+                Log($" Пользователь: {e.Text}");
                 lblStatus.Text = "🧠 Агент обрабатывает...";
                 lblStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9800"));
             });
@@ -70,6 +74,16 @@ namespace AiAssistantDesktop
             });
         }
 
+        //  Обработчик фоновых мыслей
+        private void OnInternalThought(InternalThoughtEvent e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var icon = e.Thought.Type == ThoughtType.Proactive ? "💡" : "️";
+                Log($"{icon} Внутренняя мысль: {e.Thought.Content}");
+            });
+        }
+
         private async void BtnToggleListen_Click(object sender, RoutedEventArgs e)
         {
             _isListening = !_isListening;
@@ -88,16 +102,13 @@ namespace AiAssistantDesktop
             UpdateStatusLabel();
         }
 
-        private void BtnClearLog_Click(object sender, RoutedEventArgs e)
-        {
-            txtLog.Clear();
-        }
+        private void BtnClearLog_Click(object sender, RoutedEventArgs e) => txtLog.Clear();
 
         private void UpdateListenButtonUI()
         {
             if (_isListening)
             {
-                btnToggleListen.Content = "⏹ Остановить";
+                btnToggleListen.Content = " Остановить";
                 btnToggleListen.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF5252"));
             }
             else
@@ -113,10 +124,10 @@ namespace AiAssistantDesktop
             var filesInfo = status.SessionFilesCount > 0 ? $" 📎{status.SessionFilesCount}" : "";
             lblStatus.Text = status.IsListening
                 ? $"🟢 Слушаю{filesInfo}"
-                : $"🔴 Пауза{filesInfo}";
+                : $" Пауза{filesInfo}";
         }
 
-        private void Log(string message, string? hexColor = null)
+        private void Log(string message)
         {
             Dispatcher.Invoke(() =>
             {

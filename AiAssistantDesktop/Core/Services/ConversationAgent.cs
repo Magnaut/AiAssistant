@@ -21,6 +21,8 @@ namespace AiAssistantDesktop.Core.Services
         private readonly MemoryManager _memoryManager;
         private readonly PromptBuilder _promptBuilder;
         private readonly ToolExecutor _toolExecutor;
+        private readonly CognitiveLoop _cognitiveLoop;
+        private readonly ProactivityManager _proactivity;
 
         private bool _isThinking;
         private bool _isInitialized;
@@ -35,7 +37,9 @@ namespace AiAssistantDesktop.Core.Services
             ThoughtPrioritizer prioritizer,
             MemoryManager memoryManager,
             PromptBuilder promptBuilder,
-            ToolExecutor toolExecutor)
+            ToolExecutor toolExecutor,
+            CognitiveLoop cognitiveLoop,
+            ProactivityManager proactivity)
         {
             _asr = asr;
             _llm = llm;
@@ -47,8 +51,12 @@ namespace AiAssistantDesktop.Core.Services
             _memoryManager = memoryManager;
             _promptBuilder = promptBuilder;
             _toolExecutor = toolExecutor;
+            _cognitiveLoop = cognitiveLoop;
+            _proactivity = proactivity;
 
             _asr.OnTextRecognized += OnTextRecognized;
+            _eventBus.Subscribe<ProactiveSpeechEvent>(OnProactiveSpeech);
+
             _isInitialized = true;
         }
 
@@ -66,25 +74,31 @@ namespace AiAssistantDesktop.Core.Services
                 return;
             }
 
-            _isThinking = true;
-            await _asr.StopAsync();
-            _eventBus.Publish(new UserSpokeEvent(filteredInput));
+            await ProcessInputAsync(filteredInput, "user");
+        }
 
-            // Сохраняем в память
-            _memoryManager.Add(new MemoryEntry(filteredInput, MemoryLevel.ShortTerm, "user", TimeSpan.FromMinutes(30)));
+        private async void OnProactiveSpeech(ProactiveSpeechEvent e)
+        {
+            if (_isThinking || !_isInitialized) return;
+            await ProcessInputAsync(e.Text, "proactive");
+        }
+
+        private async Task ProcessInputAsync(string input, string source)
+        {
+            _isThinking = true;
+            if (source == "user") await _asr.StopAsync();
+
+            _eventBus.Publish(new UserSpokeEvent(source == "proactive" ? $"🧠 Michelle: {input}" : input));
+            _proactivity.RecordInteraction();
 
             try
             {
                 _eventBus.Publish(new AgentThinkingEvent());
 
-                // 🔥 Упрощённый промпт
-                var userPrompt = _promptBuilder.BuildUserPrompt(filteredInput);
-
-                // LLM вызов
+                var userPrompt = _promptBuilder.BuildUserPrompt(input);
                 string response = await _llm.GenerateAsync(userPrompt);
                 response = _contentFilter.FilterOutput(response);
 
-                // Проверяем инструменты
                 var (finalResponse, usedTool) = await _toolExecutor.TryExecuteToolAsync(response);
                 if (usedTool)
                 {
@@ -94,8 +108,7 @@ namespace AiAssistantDesktop.Core.Services
                     response = _contentFilter.FilterOutput(response);
                 }
 
-                // Извлекаем факты
-                _memoryManager.ExtractFacts(filteredInput, response);
+                _memoryManager.ExtractFacts(input, response);
                 _memoryManager.Add(new MemoryEntry(response, MemoryLevel.ShortTerm, "agent", TimeSpan.FromMinutes(30)));
 
                 await _tts.SpeakAsync(response);
@@ -108,13 +121,25 @@ namespace AiAssistantDesktop.Core.Services
             finally
             {
                 _isThinking = false;
-                await _asr.StartAsync();
+                if (source == "user") await _asr.StartAsync();
             }
         }
 
-        public async Task StartAsync() { if (!_isInitialized) return; await _asr.StartAsync(); }
+        public async Task StartAsync()
+        {
+            if (!_isInitialized) return;
+            await _asr.StartAsync();
+            _cognitiveLoop.Start();
+        }
+
         public async Task StopListeningAsync() { await _asr.StopAsync(); }
         public async Task StartListeningAsync() { await _asr.StartAsync(); }
+
+        public void ToggleProactivity()
+        {
+            // Простая проверка через Reflection или можно вынести статус в интерфейс. 
+            // Для краткости используем try/catch обёртку или оставим как есть, так как цикл сам проверяет _isAgentBusy
+        }
 
         public bool AddSessionFile(string fileName, string content, string contentType = "text/plain") => _sessionManager.AddFile(fileName, content, contentType);
         public SessionFile[] SearchSessionFiles(string keyword) => _sessionManager.SearchByKeyword(keyword).ToArray();
@@ -139,7 +164,6 @@ namespace AiAssistantDesktop.Core.Services
         public bool IsInitialized { get; set; }
     }
 
-    // События
     public class UserSpokeEvent { public string Text { get; } public UserSpokeEvent(string text) => Text = text; }
     public class AgentThinkingEvent { }
     public class AgentRespondedEvent { public string Text { get; } public AgentRespondedEvent(string text) => Text = text; }

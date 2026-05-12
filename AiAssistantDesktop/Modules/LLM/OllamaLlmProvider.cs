@@ -12,12 +12,11 @@ namespace AiAssistantDesktop.Modules.LLM
 {
     public class OllamaLlmProvider : ILLMProvider
     {
-        private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromMinutes(2) };
+        private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromMinutes(5) };
         private List<Message> _history = new();
 
         private const string OllamaUrl = "http://localhost:11434/api/chat";
-        // 🔥 МЕНЯЕМ НА ЛЁГКУЮ МОДЕЛЬ
-        private const string _modelName = "qwen2.5:1.5b"; // или "tinyllama"
+        private const string _modelName = "qwen2.5:1.5b";
 
         private readonly string _logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ollama_debug.log");
 
@@ -26,7 +25,6 @@ namespace AiAssistantDesktop.Modules.LLM
 
         public OllamaLlmProvider()
         {
-            // 🔥 Упрощённый системный промпт
             _history.Add(new Message
             {
                 Role = "system",
@@ -37,32 +35,38 @@ namespace AiAssistantDesktop.Modules.LLM
 
         public Task InitializeAsync() => Task.CompletedTask;
 
-        public async Task<string> GenerateAsync(string prompt)
+        // 🔥 Основной метод (вызывает расширенный с null опциями)
+        public Task<string> GenerateAsync(string prompt)
         {
-            // 🔥 Очищаем старую историю (оставляем только system + последние 3 сообщения)
-            if (_history.Count > 4)
-            {
-                _history.RemoveAt(1); // Удаляем самое старое после system
-            }
+            return GenerateAsync(prompt, null);
+        }
+
+        // 🔥 Расширенный метод с кастомными опциями
+        public async Task<string> GenerateAsync(string prompt, Dictionary<string, object>? customOptions = null)
+        {
+            if (_history.Count > 4) _history.RemoveAt(1);
 
             _history.Add(new Message { Role = "user", Content = prompt });
 
-            // 🔥 МАКСИМАЛЬНАЯ ОПТИМИЗАЦИЯ для слабого железа
-            var request = new
+            // Базовые оптимизированные параметры
+            var options = new Dictionary<string, object>
             {
-                model = _modelName,
-                messages = _history,
-                stream = false,
-                options = new
-                {
-                    temperature = 0.7f,
-                    top_p = 0.9f,
-                    num_predict = 64,        // 🔥 Очень короткий ответ (было 256)
-                    num_ctx = 1024,          // 🔥 Маленький контекст (было 4096)
-                    num_thread = 2           // 🔥 По кол-ву ядер CPU (i3-2120 = 2 ядра)
-                }
+                { "temperature", 0.7f },
+                { "top_p", 0.9f },
+                { "num_predict", 64 },
+                { "num_ctx", 1024 },
+                { "num_thread", 2 },
+                { "repeat_penalty", 1.1f }
             };
 
+            // Перезаписываем кастомными, если переданы
+            if (customOptions != null)
+            {
+                foreach (var kvp in customOptions)
+                    options[kvp.Key] = kvp.Value;
+            }
+
+            var request = new { model = _modelName, messages = _history, stream = false, options };
             string json = JsonSerializer.Serialize(request);
 
             try
@@ -74,8 +78,8 @@ namespace AiAssistantDesktop.Modules.LLM
                     return $"Ошибка: {response.StatusCode}";
 
                 string responseJson = await response.Content.ReadAsStringAsync();
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var result = JsonSerializer.Deserialize<OllamaResponse>(responseJson, options);
+                var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var result = JsonSerializer.Deserialize<OllamaResponse>(responseJson, jsonOptions);
 
                 if (result?.Message?.Content != null)
                 {

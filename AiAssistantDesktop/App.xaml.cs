@@ -8,7 +8,7 @@ using AiAssistantDesktop.Core.Services;
 using AiAssistantDesktop.Modules.ASR;
 using AiAssistantDesktop.Modules.LLM;
 using AiAssistantDesktop.Modules.TTS;
-using AiAssistantDesktop.Modules.Tools; // 🔥 Фаза 2
+using AiAssistantDesktop.Modules.Tools;
 
 namespace AiAssistantDesktop
 {
@@ -28,25 +28,37 @@ namespace AiAssistantDesktop
         {
             var services = new ServiceCollection();
 
-            // Core
             services.AddSingleton<IEventBus, SimpleEventBus>();
             services.AddSingleton<ContentFilter>();
             services.AddSingleton<SessionFileManager>();
             services.AddSingleton<ThoughtPrioritizer>();
-
-            // 🔥 Фаза 2: Память и Инструменты
             services.AddSingleton<MemoryManager>();
             services.AddSingleton<ToolRegistry>();
             services.AddSingleton<ToolExecutor>();
             services.AddSingleton<PromptBuilder>();
+            services.AddSingleton<ProactivityManager>();
 
-            // Modules
+            // 🔥 Регистрируем CognitiveLoop с делегатом проверки занятости
+            services.AddSingleton<CognitiveLoop>(sp =>
+            {
+                // Создаём заглушку, которую позже заменим на реальный агент
+                // Но так как агент зависит от цикла, мы сделаем иначе:
+                // Передадим Func, который будет проверять статус через провайдер, 
+                // или просто оставим null-коалаесценс в цикле. 
+                // Для простоты архитектуры: цикл сам проверяет очередь задач.
+                var llm = sp.GetRequiredService<ILLMProvider>();
+                var mem = sp.GetRequiredService<MemoryManager>();
+                var proact = sp.GetRequiredService<ProactivityManager>();
+                var bus = sp.GetRequiredService<IEventBus>();
+
+                return new CognitiveLoop(llm, mem, proact, bus, () => false); // Пока false, цикл сам справится с очередью
+            });
+
             services.AddSingleton<ILLMProvider, OllamaLlmProvider>();
             services.AddSingleton<ITTSService, SystemTtsService>();
             string modelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Models", "vosk-model-small-ru");
             services.AddSingleton<IASRService>(sp => new VoskAsrService(modelPath));
 
-            // Регистрация базовых инструментов
             services.AddSingleton<ToolRegistry>(sp =>
             {
                 var registry = new ToolRegistry();
@@ -56,7 +68,6 @@ namespace AiAssistantDesktop
                 return registry;
             });
 
-            // Agent
             services.AddSingleton<ConversationAgent>();
 
             Services = services.BuildServiceProvider();

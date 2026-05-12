@@ -12,6 +12,7 @@ namespace AiAssistantDesktop
     {
         private readonly ConversationAgent _agent;
         private readonly IEventBus _eventBus;
+        private readonly ThemeManager _themeManager;
         private bool _isListening = true;
 
         public MainWindow()
@@ -20,16 +21,21 @@ namespace AiAssistantDesktop
 
             _agent = App.Services!.GetRequiredService<ConversationAgent>();
             _eventBus = App.Services!.GetRequiredService<IEventBus>();
+            _themeManager = new ThemeManager();
 
             _eventBus.Subscribe<UserSpokeEvent>(OnUserSpoke);
             _eventBus.Subscribe<AgentThinkingEvent>(OnAgentThinking);
             _eventBus.Subscribe<AgentRespondedEvent>(OnAgentResponded);
             _eventBus.Subscribe<AgentErrorEvent>(OnAgentError);
 
-            //  Подписка на проактивные события Фазы 3
             _eventBus.Subscribe<InternalThoughtEvent>(OnInternalThought);
             _eventBus.Subscribe<CognitiveLoopStartedEvent>(_ => Log("🧠 Когнитивный цикл запущен"));
-            _eventBus.Subscribe<CognitiveLoopStoppedEvent>(_ => Log(" Когнитивный цикл остановлен"));
+            _eventBus.Subscribe<CognitiveLoopStoppedEvent>(_ => Log("🛑 Когнитивный цикл остановлен"));
+
+            // Инициализация тем
+            cmbTheme.ItemsSource = _themeManager.AvailableThemes;
+            cmbTheme.SelectedItem = _themeManager.GetCurrentTheme();
+            _themeManager.ApplyTheme(cmbTheme.SelectedItem.ToString());
 
             UpdateListenButtonUI();
             UpdateStatusLabel();
@@ -39,9 +45,8 @@ namespace AiAssistantDesktop
         {
             Dispatcher.Invoke(() =>
             {
-                Log($" Пользователь: {e.Text}");
+                Log($"👤 Пользователь: {e.Text}");
                 lblStatus.Text = "🧠 Агент обрабатывает...";
-                lblStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9800"));
             });
         }
 
@@ -59,7 +64,6 @@ namespace AiAssistantDesktop
             {
                 Log($"🤖 Агент: {e.Text}");
                 lblStatus.Text = "🟢 Система активна";
-                lblStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
                 UpdateStatusLabel();
             });
         }
@@ -70,16 +74,14 @@ namespace AiAssistantDesktop
             {
                 Log($"❌ Ошибка: {e.Message}");
                 lblStatus.Text = "⚠️ Ошибка";
-                lblStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E57373"));
             });
         }
 
-        //  Обработчик фоновых мыслей
         private void OnInternalThought(InternalThoughtEvent e)
         {
             Dispatcher.Invoke(() =>
             {
-                var icon = e.Thought.Type == ThoughtType.Proactive ? "💡" : "️";
+                var icon = e.Thought.Type == ThoughtType.Proactive ? "💡" : "🌫️";
                 Log($"{icon} Внутренняя мысль: {e.Thought.Content}");
             });
         }
@@ -104,11 +106,17 @@ namespace AiAssistantDesktop
 
         private void BtnClearLog_Click(object sender, RoutedEventArgs e) => txtLog.Clear();
 
+        private void CmbTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (cmbTheme.SelectedItem != null)
+                _themeManager.ApplyTheme(cmbTheme.SelectedItem.ToString());
+        }
+
         private void UpdateListenButtonUI()
         {
             if (_isListening)
             {
-                btnToggleListen.Content = " Остановить";
+                btnToggleListen.Content = "⏹ Остановить";
                 btnToggleListen.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF5252"));
             }
             else
@@ -124,7 +132,7 @@ namespace AiAssistantDesktop
             var filesInfo = status.SessionFilesCount > 0 ? $" 📎{status.SessionFilesCount}" : "";
             lblStatus.Text = status.IsListening
                 ? $"🟢 Слушаю{filesInfo}"
-                : $" Пауза{filesInfo}";
+                : $"🔴 Пауза{filesInfo}";
         }
 
         private void Log(string message)

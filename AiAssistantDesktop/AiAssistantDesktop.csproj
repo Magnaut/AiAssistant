@@ -10,6 +10,7 @@
 
 	<ItemGroup>
 		<Folder Include="Data\" />
+		<Folder Include="Modules\Chat\" />
 		<Folder Include="UI\Views\" />
 	</ItemGroup>
 
@@ -17,6 +18,7 @@
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
 		<PackageReference Include="NAudio" Version="2.3.0" />
 		<PackageReference Include="System.Speech" Version="10.0.7" />
+		<PackageReference Include="Telegram.Bot" Version="22.10.0" />
 		<PackageReference Include="Vosk" Version="0.3.38" />
 	</ItemGroup>
 
@@ -25,6 +27,19 @@
 		<Content Include="Models\**\*.*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
+	</ItemGroup>
+	<ItemGroup>
+	  <Compile Update="Properties\Settings.Designer.cs">
+	    <DesignTimeSharedInput>True</DesignTimeSharedInput>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Settings.settings</DependentUpon>
+	  </Compile>
+	</ItemGroup>
+	<ItemGroup>
+	  <None Update="Properties\Settings.settings">
+	    <Generator>SettingsSingleFileGenerator</Generator>
+	    <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+	  </None>
 	</ItemGroup>
 
 </Project>

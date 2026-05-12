@@ -62,7 +62,7 @@ namespace AiAssistantDesktop.Core.Services
 
         private async void OnTextRecognized(string rawText)
         {
-            if (_isThinking || !_isInitialized) return;
+            if (!_isInitialized) return;
 
             var filteredInput = _contentFilter.FilterInput(rawText);
             if (string.IsNullOrWhiteSpace(filteredInput)) return;
@@ -71,6 +71,21 @@ namespace AiAssistantDesktop.Core.Services
             if (thought.CanBeIgnored)
             {
                 _eventBus.Publish(new UserSpokeEvent($"[Low] {filteredInput}"));
+                return;
+            }
+
+            // 🔥 BARGE-IN: Если агент говорит и пришёл важный запрос — прерываем
+            if (_tts.IsSpeaking && thought.Priority >= ThoughtPriority.High)
+            {
+                await _tts.StopAsync();
+                _eventBus.Publish(new AgentInterruptedEvent("User interrupt"));
+                // Не ждём, сразу обрабатываем новый ввод
+            }
+
+            // Если агент уже думает — ставим в очередь (упрощённо: игнорируем)
+            if (_isThinking)
+            {
+                _proactivity.RecordUnanswered();
                 return;
             }
 
@@ -135,10 +150,20 @@ namespace AiAssistantDesktop.Core.Services
         public async Task StopListeningAsync() { await _asr.StopAsync(); }
         public async Task StartListeningAsync() { await _asr.StartAsync(); }
 
-        public void ToggleProactivity()
+        // 🔥 Методы для динамического переключения моделей
+        public async Task<bool> SwitchLlmModelAsync(string modelName)
         {
-            // Простая проверка через Reflection или можно вынести статус в интерфейс. 
-            // Для краткости используем try/catch обёртку или оставим как есть, так как цикл сам проверяет _isAgentBusy
+            if (_llm is ISwitchableProvider switchable)
+                return await switchable.SwitchModelAsync(modelName);
+            return false;
+        }
+
+        public string GetCurrentModel() => _llm.ModelName;
+        public string[] GetAvailableModels()
+        {
+            if (_llm is ISwitchableProvider switchable)
+                return switchable.AvailableModels.ToArray();
+            return new[] { _llm.ModelName };
         }
 
         public bool AddSessionFile(string fileName, string content, string contentType = "text/plain") => _sessionManager.AddFile(fileName, content, contentType);

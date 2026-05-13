@@ -110,7 +110,7 @@ namespace AiAssistantDesktop.Core.Services
             try
             {
                 var json = System.Text.Json.JsonSerializer.Serialize(request);
-                using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+                using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(5) };
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
                 var response = await client.PostAsync("http://localhost:11434/api/chat", content);

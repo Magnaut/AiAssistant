@@ -49,7 +49,12 @@ namespace AiAssistantDesktop.Core.Services
             // 🔥 Vision-контекст
             sb.AppendLine("ЗРЕНИЕ:");
             sb.AppendLine("• Ты можешь 'видеть' экран через команду [TOOL:screenshot]");
-            sb.AppendLine("• Если пользователь спрашивает 'что у меня открыто?', 'какой сайт?', 'есть ли ошибка?' — используй screenshot");
+            sb.AppendLine("• ИСПОЛЬЗУЙ screenshot ТОЛЬКО если пользователь явно просит:");
+            sb.AppendLine("  - 'что у меня открыто?'");
+            sb.AppendLine("  - 'какой сайт?'");
+            sb.AppendLine("  - 'есть ли ошибка на экране?'");
+            sb.AppendLine("  - 'опиши мой экран'");
+            sb.AppendLine("• НЕ используй screenshot для обычных вопросов!");
             sb.AppendLine("• Отвечай по содержимому скриншота, не выдумывай.");
             sb.AppendLine();
 

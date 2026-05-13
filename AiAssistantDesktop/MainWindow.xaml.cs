@@ -1,4 +1,5 @@
 ﻿using AiAssistantDesktop.Core.Events;
+using AiAssistantDesktop.Core.Interfaces;
 using AiAssistantDesktop.Core.Models;
 using AiAssistantDesktop.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +58,41 @@ namespace AiAssistantDesktop
         }
 
         private void BtnClearLog_Click(object sender, RoutedEventArgs e) => txtLog.Clear();
+
+        private async void BtnScreenshot_Click(object sender, RoutedEventArgs e)
+        {
+            Log("📸 Делаю скриншот...");
+
+            var vision = App.Services?.GetService<IVisionService>();
+            if (vision == null)
+            {
+                Log("❌ VisionService не найден");
+                return;
+            }
+
+            try
+            {
+                // Делаем скриншот и сразу анализируем
+                var base64 = await vision.CaptureScreenAsync();
+                if (string.IsNullOrWhiteSpace(base64))
+                {
+                    Log("❌ Не удалось сделать скриншот");
+                    return;
+                }
+
+                // Отправляем на анализ с общим вопросом
+                var analysis = await vision.AnalyzeImageAsync(base64, "Что видно на этом скриншоте? Опиши кратко.");
+                Log($"👁️ Анализ: {analysis}");
+
+                // Озвучиваем результат
+                await App.Services?.GetRequiredService<ITTSService>().SpeakAsync(analysis);
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Ошибка: {ex.Message}");
+            }
+        }
+
         private void CmbTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         { if (cmbTheme.SelectedItem != null) _themeManager.ApplyTheme(cmbTheme.SelectedItem.ToString()); }
 

@@ -37,8 +37,7 @@ namespace AiAssistantDesktop.Core.Services
                 sb.AppendLine("ПРИМЕРЫ:");
                 sb.AppendLine("[TOOL:get_datetime] [/TOOL] — время");
                 sb.AppendLine("[TOOL:calculate] expression: 2+2 [/TOOL] — посчитать");
-                sb.AppendLine("[TOOL:clipboard] action: get [/TOOL] — буфер");
-                sb.AppendLine("[TOOL:say_hello] [/TOOL] — привет");
+                sb.AppendLine("[TOOL:screenshot] target: screen, question: Что открыто? [/TOOL] — скриншот");
                 sb.AppendLine();
                 sb.AppendLine("ПРАВИЛА:");
                 sb.AppendLine("1. Если можно использовать команду — ОБЯЗАТЕЛЬНО используй.");
@@ -46,6 +45,13 @@ namespace AiAssistantDesktop.Core.Services
                 sb.AppendLine("3. После команды напиши короткий ответ.");
                 sb.AppendLine();
             }
+
+            // 🔥 Vision-контекст
+            sb.AppendLine("ЗРЕНИЕ:");
+            sb.AppendLine("• Ты можешь 'видеть' экран через команду [TOOL:screenshot]");
+            sb.AppendLine("• Если пользователь спрашивает 'что у меня открыто?', 'какой сайт?', 'есть ли ошибка?' — используй screenshot");
+            sb.AppendLine("• Отвечай по содержимому скриншота, не выдумывай.");
+            sb.AppendLine();
 
             var memory = _memoryManager.GetContextForLLM(maxShort: 3, maxMedium: 2, maxLong: 0);
             if (!string.IsNullOrWhiteSpace(memory))

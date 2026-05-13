@@ -58,8 +58,16 @@ namespace AiAssistantDesktop
                 registry.Register(new DateTimeTool());
                 registry.Register(new CalculatorTool());
                 registry.Register(new MockSearchTool());
+
+                // 🔥 Новый инструмент: скриншот
+                var vision = sp.GetRequiredService<IVisionService>();
+                registry.Register(new ScreenshotTool(vision));
+
                 return registry;
             });
+
+            // 🔥 Vision Service
+            services.AddSingleton<IVisionService, VisionService>();
 
             services.AddSingleton<ConversationAgent>();
             Services = services.BuildServiceProvider();

@@ -39,6 +39,8 @@
                     Background="{DynamicResource ButtonBrush}" Foreground="{DynamicResource TextBrush}"/>
             <Button Name="btnClearLog" Content="🗑 Очистить" Width="100" Height="35" Click="BtnClearLog_Click"
                     Background="{DynamicResource ButtonBrush}" Foreground="{DynamicResource TextBrush}"/>
+            <Button Name="btnScreenshot" Content="📸 Скриншот" Width="120" Height="35" Click="BtnScreenshot_Click" Margin="10,0,0,0"
+                    Background="{DynamicResource ButtonBrush}" Foreground="{DynamicResource TextBrush}"/>
         </StackPanel>
     </Grid>
 </Window>
